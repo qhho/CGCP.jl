@@ -4,8 +4,7 @@ using JuMP
 using POMDPs
 import GLPK
 using SARSOP
-using POMDPModelTools
-using POMDPPolicies
+using POMDPTools
 using ConstrainedPOMDPs
 using RandomNumbers.Xorshifts
 

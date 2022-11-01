@@ -15,7 +15,7 @@ function StateActionReward(m)
     return FunctionSARC(m)
 end
 
-struct FunctionSARC{M} <: POMDPModelTools.StateActionReward
+struct FunctionSARC{M} <: POMDPTools.StateActionReward
     m::M
 end
 
@@ -27,7 +27,7 @@ function (sarc::FunctionSARC)(s, a)
     end
 end
 
-function initialize_master(m::ConstrainedPOMDPWrapper, solver, sim::RolloutSimulator)
+function initialize_master(m::ConstrainedPOMDPWrapper, solver, sim::ConstrainedPOMDPs.RolloutSimulator)
     #check correctness of this
     policy_vector = Vector{AlphaVectorPolicy}(undef, 0)
     mlp = Model(GLPK.Optimizer)
@@ -47,7 +47,7 @@ function initialize_master(m::ConstrainedPOMDPWrapper, solver, sim::RolloutSimul
 
     @constraint(mlp, dualcon, sum(c*x[1]) <= m.constraints[1])
     @constraint(mlp, validprobability, sum(x[i] for i in 1:1) == 1.0)
-    
+
     return mlp, x, dualcon, validprobability, policy_vector
 end
 
@@ -63,9 +63,9 @@ function add_column_to_master!(mlp, x, v, c, dualcon, validprobability, ncols)
     set_normalized_coefficient(validprobability, x[ncols], 1)
 end
 
-function evaluate_policy(m, policy, simmer::RolloutSimulator; parallel=true)
+function evaluate_policy(m, policy, simmer::ConstrainedPOMDPs.RolloutSimulator; parallel=true)
     #monte carlo simulation evaluation of policy
-    #TODO: currently, we use MC evaluation instead of policy graph with lots of 
+    #TODO: currently, we use MC evaluation instead of policy graph with lots of
     # need to use policy graph evaluation for comparison
     n_sim = 100
     total_v = 0.0
@@ -99,7 +99,7 @@ end
 function CGCPSolver(M::ConstrainedPOMDPWrapper, max_time, τ_inc, ρ)
     #check correctness of this
     solver = SARSOPSolver(precision=1e-3, verbose= true, fast = true)
-    simmer = RolloutSimulator(max_steps = 500, rng=Xoroshiro128Plus(1))
+    simmer = ConstrainedPOMDPs.RolloutSimulator(max_steps = 500, rng=Xoroshiro128Plus(1))
     mlp, x, dualcon, validprobability, policy_vector = initialize_master(M, solver, simmer)
 
     # T_p = 0.0
@@ -114,7 +114,7 @@ function CGCPSolver(M::ConstrainedPOMDPWrapper, max_time, τ_inc, ρ)
         λ = shadow_price(dualcon)
         ncols += 1
         @show (time() - t_0)
-        
+
         push!(dual_vectors, λ)
         if λ == λ_p
             τ += τ_inc
