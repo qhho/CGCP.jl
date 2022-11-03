@@ -17,15 +17,22 @@ function CGCPSolver(; max_time=1e5, τ_inc=100.0, ρ=3.0)
     return CGCPSolver(max_time,τ_inc,ρ)
 end
 
-function CGCPProblem(m::ConstrainedPOMDPWrapper, λ::Vector{Float64}, initialized::Bool)
-    return CGCPProblem{statetype(m.m), actiontype(m.m), obstype(m.m), typeof(m.m)}(m.m, m.constraints, λ, initialized)
-end
-
 mutable struct CGCPProblem{S,A,O,M<:POMDP} <: POMDP{Tuple{S, Int}, A, Tuple{O,Int}}
     m::M
     constraints::Vector{Float64}
     λ::Vector{Float64}
     initialized::Bool
+end
+
+function CGCPProblem(m::ConstrainedPOMDPWrapper, λ::Vector{Float64}, initialized::Bool)
+    return CGCPProblem{statetype(m.m), actiontype(m.m), obstype(m.m), typeof(m.m)}(m.m, m.constraints, λ, initialized)
+end
+
+struct CGCPSolution <: Policy
+    policy_vector::Vector{POMDPTools.Policies.AlphaVectorPolicy}
+    p_pi::Vector{Float64}
+    mlp::JuMP.Model
+    dual_vectors::Vector{Vector{Float64}}
 end
 
 ##Functions for Simulating Weighted Sums
@@ -184,5 +191,17 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
     optimize!(mlp)
 
     p_pi = JuMP.value.(x)
-    return policy_vector, p_pi, mlp, dual_vectors
+    return CGCPSolution(policy_vector, p_pi, mlp, dual_vectors)
+end
+
+function POMDPs.action(policy::CGCPSolution, x)
+    return action(last(policy.policy_vector), x)
+end
+
+function POMDPs.value(policy::CGCPSolution, s)
+    return value(last(policy.policy_vector), s)
+end
+
+function POMDPs.value(policy::CGCPSolution, s, a)
+    return value(last(policy.policy_vector), s, a)
 end
