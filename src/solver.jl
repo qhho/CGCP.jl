@@ -18,14 +18,14 @@ function CGCPSolver(; max_time=1e5, τ_inc=100.0, ρ=3.0)
 end
 
 mutable struct CGCPProblem{S,A,O,M<:POMDP} <: POMDP{Tuple{S, Int}, A, Tuple{O,Int}}
-    m::M
-    constraints::Vector{Float64}
+    _pomdp::M
+    m::ConstrainedPOMDPWrapper{S,A,O,M}
     λ::Vector{Float64}
     initialized::Bool
 end
 
 function CGCPProblem(m::ConstrainedPOMDPWrapper, λ::Vector{Float64}, initialized::Bool)
-    return CGCPProblem{statetype(m.m), actiontype(m.m), obstype(m.m), typeof(m.m)}(m.m, m.constraints, λ, initialized)
+    return CGCPProblem{statetype(m.m), actiontype(m.m), obstype(m.m), typeof(m.m)}(m.m, m, λ, initialized)
 end
 
 struct CGCPSolution <: Policy
@@ -82,7 +82,7 @@ function initialize_master(m::CGCPProblem, solver, sim::ConstrainedPOMDPs.Rollou
     policy_vector = Vector{AlphaVectorPolicy}(undef, 0)
     mlp = Model(GLPK.Optimizer)
     @variable(mlp, x[1:1] >= 0)
-    λ = ones(length(m.constraints))
+    λ = ones(length(m.m.constraints))
     τ = 20.0
     m.initialized = false
     policy = compute_policy(m, solver, λ, τ, 1.0)
@@ -95,7 +95,7 @@ function initialize_master(m::CGCPProblem, solver, sim::ConstrainedPOMDPs.Rollou
             sum(v*x[i] for i in 1:1)
         )
 
-    @constraint(mlp, dualcon, sum(c*x[1]) <= m.constraints[1])
+    @constraint(mlp, dualcon, sum(c*x[1]) <= m.m.constraints[1])
     @constraint(mlp, validprobability, sum(x[i] for i in 1:1) == 1.0)
 
     return mlp, x, dualcon, validprobability, policy_vector
@@ -119,19 +119,19 @@ function evaluate_policy(m::CGCPProblem, policy, simmer::ConstrainedPOMDPs.Rollo
     # need to use policy graph evaluation for comparison
     n_sim = 100
     total_v = 0.0
-    total_c = zeros(length(m.constraints))
+    total_c = zeros(length(m.m.constraints))
     λ = m.λ
-    m.λ = zeros(length(m.constraints))
+    m.λ = zeros(length(m.m.constraints))
     m.initialized = true
     if parallel && Threads.nthreads() > 1
         Threads.@threads for i in 1:n_sim
-            v, c = ConstrainedPOMDPs.simulate(simmer, ConstrainedPOMDPWrapper(m.m,m.constraints), policy, updater(policy), initialstate(m), rand(initialstate(m)))
+            v, c = ConstrainedPOMDPs.simulate(simmer, m.m, policy, updater(policy), initialstate(m), rand(initialstate(m)))
             total_v += v
             total_c += c
         end
     else
         for i in 1:n_sim
-            v, c = ConstrainedPOMDPs.simulate(simmer, ConstrainedPOMDPWrapper(m.m,m.constraints), policy, updater(policy), initialstate(m), rand(initialstate(m)))
+            v, c = ConstrainedPOMDPs.simulate(simmer, m.m, policy, updater(policy), initialstate(m), rand(initialstate(m)))
             total_v += v
             total_c += c
         end
