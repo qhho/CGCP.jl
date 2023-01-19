@@ -3,7 +3,7 @@ module CGCP
 using JuMP
 using POMDPs
 import GLPK
-using SARSOP
+using JuliaSARSOP
 using POMDPTools
 using ConstrainedPOMDPs
 using RandomNumbers.Xorshifts

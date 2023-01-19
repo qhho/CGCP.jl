@@ -77,7 +77,7 @@ function (sarc::FunctionSARC)(s, a)
 end
 
 ##
-function initialize_master(m::CGCPProblem, solver, sim::ConstrainedPOMDPs.RolloutSimulator)
+function initialize_master(m::CGCPProblem, sim::ConstrainedPOMDPs.RolloutSimulator)
     #check correctness of this
     policy_vector = Vector{AlphaVectorPolicy}(undef, 0)
     mlp = Model(GLPK.Optimizer)
@@ -85,7 +85,7 @@ function initialize_master(m::CGCPProblem, solver, sim::ConstrainedPOMDPs.Rollou
     λ = ones(length(m.m.constraints))
     τ = 20.0
     m.initialized = false
-    policy = compute_policy(m, solver, λ, τ, 1.0)
+    policy = compute_policy(m, λ, τ, 1.0)
     push!(policy_vector, policy)
     v, c = evaluate_policy(m, policy, sim)
     m.initialized = true
@@ -140,10 +140,10 @@ function evaluate_policy(m::CGCPProblem, policy, simmer::ConstrainedPOMDPs.Rollo
     return total_v/n_sim, ceil.((total_c/n_sim),digits = 3)
 end
 
-function compute_policy(m::CGCPProblem, solver, λ::Vector{Float64}, τ::Float64, ρ::Float64)
+function compute_policy(m::CGCPProblem, λ::Vector{Float64}, τ::Float64, ρ::Float64)
     m.λ = λ
-    solver.timeout = τ
-    return SARSOP.solve(solver, m)
+    solver = SARSOPSolver(precision=1e-3,max_time=τ)
+    return solve(solver, m)
 end
 
 function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
@@ -153,9 +153,8 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
     ρ = solver.ρ
 
     #check correctness of this
-    solver = SARSOPSolver(precision=1e-3, verbose= true, fast = true)
     simmer = ConstrainedPOMDPs.RolloutSimulator(max_steps = 500, rng=Xoroshiro128Plus(1))
-    mlp, x, dualcon, validprobability, policy_vector = initialize_master(M, solver, simmer)
+    mlp, x, dualcon, validprobability, policy_vector = initialize_master(M, simmer)
 
     # T_p = 0.0
     dual_vectors = [fill(Inf,length(pomdp.constraints))]
@@ -175,7 +174,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
             τ += τ_inc
         end
         t_temp = time()
-        policy = compute_policy(M, solver, λ, τ,ρ)
+        policy = compute_policy(M, λ, τ, ρ)
         @show time(), t_temp
         t_0 += (time() - t_temp) - τ
         V, C = evaluate_policy(M, policy, simmer)
