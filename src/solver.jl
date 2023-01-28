@@ -142,8 +142,8 @@ end
 
 function compute_policy(m::CGCPProblem, λ::Vector{Float64}, τ::Float64, ρ::Float64)
     m.λ = λ
-    solver = SARSOPSolver(precision=1e-3,max_time=τ)
-    return solve(solver, m)
+    solver = PBVISolver(max_iterations=20)
+    return PBVI.solve(solver, m)
 end
 
 function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
@@ -166,6 +166,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
     @until time() - t_0 >= max_time begin
         optimize!(mlp)
         λ = [shadow_price(dualcon)] #THIS IS LIKELY BROKEN
+        @show λ
         ncols += 1
         @show (time() - t_0)
 
