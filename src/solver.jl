@@ -144,12 +144,15 @@ function evaluate_policy(m::CGCPProblem, policy, simmer::ConstrainedPOMDPs.Rollo
     end
     m.λ = λ
     @show total_v/n_sim, ceil.((total_c/n_sim),digits = 3)
+
     up = DiscreteUpdater(m)
     b0 = initialize_belief(up,initialstate(m))
     pg = GenandEvalPG(m,up,policy,b0,5;rewardfunction=PG_reward)
     pg_val = BeliefValue(pg,b0)
     v = pg_val[1]
-    c = pg_val[2:end]
+    c = ceil.(pg_val[2:end],digits = 3)
+    @show v,c
+    return v,c
 end
 
 function compute_policy(m::CGCPProblem, λ::Vector{Float64}, τ::Float64, ρ::Float64)
@@ -178,9 +181,9 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
     @until time() - t_0 >= max_time begin
         optimize!(mlp)
         λ = [shadow_price(dualcon)] #THIS IS LIKELY BROKEN
-        @show λ
+        # @show λ
         ncols += 1
-        @show (time() - t_0)
+        # @show (time() - t_0)
 
         push!(dual_vectors, λ)
         if λ == λ_p
@@ -188,16 +191,16 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
         end
         t_temp = time()
         policy = compute_policy(M, λ, τ, ρ)
-        @show time(), t_temp
+        # @show time(), t_temp
         t_0 += (time() - t_temp) - τ
         V, C = evaluate_policy(M, policy, simmer)
-        @show dualcon
-        @show C
+        # @show dualcon
+        # @show C
         add_column_to_master!(mlp, x, V, C, dualcon, validprobability, ncols)
         # ϕ_upper += policy_upper_bound
         push!(policy_vector , policy)
         λ_p = λ
-        @show (time() - t_0)
+        # @show (time() - t_0)
     end
 
     optimize!(mlp)
