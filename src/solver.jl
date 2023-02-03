@@ -64,6 +64,12 @@ function StateActionReward(m)
     return FunctionSARC(m)
 end
 
+PG_reward(m::CGCPProblem, s, a, sp) =  PG_reward(m, s, a)
+
+function PG_reward(m::CGCPProblem,s,a)
+    return [reward(m.m, s, a), ConstrainedPOMDPs.cost(m.m,s,a)...]
+end
+
 struct FunctionSARC{M} <: POMDPTools.StateActionReward
     m::M
 end
@@ -137,7 +143,13 @@ function evaluate_policy(m::CGCPProblem, policy, simmer::ConstrainedPOMDPs.Rollo
         end
     end
     m.λ = λ
-    return total_v/n_sim, ceil.((total_c/n_sim),digits = 3)
+    @show total_v/n_sim, ceil.((total_c/n_sim),digits = 3)
+    up = DiscreteUpdater(m)
+    b0 = initialize_belief(up,initialstate(m))
+    pg = GenandEvalPG(m,up,policy,b0,5;rewardfunction=PG_reward)
+    pg_val = BeliefValue(pg,b0)
+    v = pg_val[1]
+    c = pg_val[2:end]
 end
 
 function compute_policy(m::CGCPProblem, λ::Vector{Float64}, τ::Float64, ρ::Float64)

@@ -6,7 +6,7 @@ function main()
         terminate_from=Set(SVector{2,Int64}[[5, 5]]),
         rewards=Dict(GWPos(5, 5) => 10.0),
         tprob=1.0)
-    c_gw = ConstrainedPOMDPs.Constrain(po_gw, [2.7])
+    c_gw = ConstrainedPOMDPs.Constrain(po_gw, [1.0])
     soln = solve(CGCPSolver(), c_gw)
 
     #From ConstrainedSARSOP Testing
