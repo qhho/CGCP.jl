@@ -1,9 +1,7 @@
-include("CGCP.jl")
-# include("../ConstrainedPOMDPs.jl")
-using .ConstrainedPOMDPs
+using ConstrainedPOMDPs
 using POMDPs
 using POMDPModels
-using POMDPModelTools
+using POMDPTools
 using Random
 
 pomdp = TigerPOMDP()
@@ -17,18 +15,18 @@ m = Constrain(pomdp, [1.0])
 
 function ConstrainedPOMDPs.cost(m, s, a)
     if a == 0
-        return 10.0
+        return [10.0]
     elseif a == 2
-        return 0.0
+        return [0.0]
     else
-        return 0.0
+        return [0.0]
     end
 end
 
-policy_vector, p_pi, mlp, dual_vectors = CGCP(m, 10.0, 1, 0.5)
+# policy_vector, p_pi, mlp, dual_vectors = solve(CGCPSolver(),m) #CGCP(m, 10.0, 1, 0.5)
 
-print(mlp)
-@show p_pi
-@show dual_vectors
+# print(mlp)
+# @show p_pi
+# @show dual_vectors
 
-@show termination_status(mlp)
+# @show termination_status(mlp)
