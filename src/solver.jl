@@ -157,7 +157,7 @@ end
 
 function compute_policy(m::CGCPProblem, λ::Vector{Float64}, τ::Float64, ρ::Float64)
     m.λ = λ
-    solver = PBVISolver(max_iterations=20)
+    solver = PBVISolver(max_iter=5)
     return PBVI.solve(solver, m)
 end
 
