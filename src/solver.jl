@@ -127,6 +127,7 @@ function evaluate_policy(m::CGCPProblem, policy, simmer::ConstrainedPOMDPs.Rollo
     total_v = 0.0
     total_c = zeros(length(m.m.constraints))
     λ = m.λ
+    @show λ
     m.λ = zeros(length(m.m.constraints))
     m.initialized = true
     if parallel && Threads.nthreads() > 1
@@ -147,8 +148,8 @@ function evaluate_policy(m::CGCPProblem, policy, simmer::ConstrainedPOMDPs.Rollo
 
     up = DiscreteUpdater(m)
     b0 = initialize_belief(up,initialstate(m))
-    pg = GenandEvalPG(m,up,policy,b0,5;rewardfunction=PG_reward)
-    pg_val = BeliefValue(pg,b0)
+    # pg = GenandEvalPG(m,up,policy,b0,5;rewardfunction=PG_reward)
+    pg_val = BeliefValue(m,up,policy,b0,5;rewardfunction=PG_reward)
     v = pg_val[1]
     c = ceil.(pg_val[2:end],digits = 3)
     @show v,c

@@ -1,11 +1,15 @@
-include("../../JuliaConstrainedSARSOP.jl/test/constrained_gw.jl")
-sleep_until(t) = sleep(max(t - time(), 0.0))
+using POMDPs
+using ConstrainedPOMDPModels
+using StaticArrays
+using ConstrainedPOMDPs
+
+# sleep_until(t) = sleep(max(t - time(), 0.0))
 
 function main()
     println("Instantiate Problem") 
-    po_gw = PO_GW(size=(5, 5),
+    po_gw = ConstrainedPOMDPModels.GridWorldPOMDP(size=(5, 5),
         terminate_from=Set(SVector{2,Int64}[[5, 5]]),
-        rewards=Dict(GWPos(5, 5) => 10.0),
+        rewards=Dict(ConstrainedPOMDPModels.GWPos(5, 5) => 10.0),
         tprob=1.0)
     c_gw = ConstrainedPOMDPs.Constrain(po_gw, [1.0])
 
