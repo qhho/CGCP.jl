@@ -5,6 +5,19 @@ using ConstrainedPOMDPs
 
 # sleep_until(t) = sleep(max(t - time(), 0.0))
 
+# function POMDPs.reward(m::ConstrainedPOMDPModels.GridWorldPOMDP, s, a)
+#     po2_gw = ConstrainedPOMDPModels.GridWorldPOMDP(size=(5, 5),
+#     terminate_from=Set(SVector{2,Int64}[[5, 5]]),
+#     rewards=Dict(ConstrainedPOMDPModels.GWPos(5, 5) => 10.0),
+#     tprob=1.0)
+#     c2_gw = ConstrainedPOMDPs.Constrain(po2_gw, [1.0])
+#     return reward(m.mdp, s, a) - [1]'*cost(c2_gw, s, a)
+# end
+
+# function ConstrainedPOMDPs.cost(constrained::ConstrainedPOMDPModels.ConstrainedGridWorld, s, a)
+#     return [0.0]
+# end
+
 function main()
     println("Instantiate Problem") 
     po_gw = ConstrainedPOMDPModels.GridWorldPOMDP(size=(5, 5),
@@ -13,8 +26,10 @@ function main()
         tprob=1.0)
     c_gw = ConstrainedPOMDPs.Constrain(po_gw, [1.0])
 
-    println("Solve") 
-    soln = solve(CGCPSolver(), c_gw)
+    println("Solve")
+    soln = solve(CGCPSolver(;h=6), c_gw)
+    return soln
+    @show soln.h
 
     # println("More Testing")    
     # #From ConstrainedSARSOP Testing
@@ -55,3 +70,36 @@ end
 
 
 soln = main();
+
+# ### CGCP Struct Test
+# po_gw = ConstrainedPOMDPModels.GridWorldPOMDP(size=(5, 5),
+#         terminate_from=Set(SVector{2,Int64}[[5, 5]]),
+#         rewards=Dict(ConstrainedPOMDPModels.GWPos(5, 5) => 10.0),
+#         tprob=1.0)
+# c_gw = ConstrainedPOMDPs.Constrain(po_gw, [1.0])
+
+# # function ConstrainedPOMDPs.cost(constrained::ConstrainedPOMDPModels.ConstrainedGridWorld, s, a)
+# #     return [0.0]
+# # end
+
+# M1 = CGCP.CGCPProblem(c_gw,ones(length(c_gw.constraints)),true,6)
+# pol1 = CGCP.compute_policy(M1, ones(length(c_gw.constraints)), 0.0, 0.0)
+
+# PG_reward(m::ConstrainedPOMDPModels.GridWorldPOMDP, s, a, sp) =  PG_reward(m, s, a)
+
+# function PG_reward(m::ConstrainedPOMDPModels.GridWorldPOMDP,s,a)
+#     return [reward(m, s, a), ConstrainedPOMDPs.cost(c_gw,s,a)...]
+# end
+
+# pol2 = PBVI.solve(PBVISolver(max_iter=10),po_gw)
+# # pol3 = PBVI.solve(PBVISolver(max_iter=10),po_gw)
+# #Call PBVI Twice
+# #Test w/ SARSOP
+# #Check PG construction with same policy and different problem
+# up1 = DiscreteUpdater(po_gw)
+# b01 = initialize_belief(up1,initialstate(po_gw))
+# testpg = BeliefValue(po_gw,up1,pol2,b01,6;rewardfunction=PG_reward)
+
+# up2 = DiscreteUpdater(M1)
+# b02 = initialize_belief(up2,initialstate(M1))
+# testpg2 = BeliefValue(M1,up2,pol2,b02,6;rewardfunction=CGCP.PG_reward)

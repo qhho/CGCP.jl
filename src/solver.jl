@@ -11,10 +11,11 @@ struct CGCPSolver
     max_time::Float64
     τ_inc::Float64
     ρ::Float64
+    h::Int64
 end
 
-function CGCPSolver(; max_time=1e5, τ_inc=100.0, ρ=3.0)
-    return CGCPSolver(max_time,τ_inc,ρ)
+function CGCPSolver(; max_time=1e5, τ_inc=100.0, ρ=3.0, h=typemax(Int64))
+    return CGCPSolver(max_time,τ_inc,ρ,h)
 end
 
 mutable struct CGCPProblem{S,A,O,M<:POMDP} <: POMDP{Tuple{S, Int}, A, Tuple{O,Int}}
@@ -22,10 +23,11 @@ mutable struct CGCPProblem{S,A,O,M<:POMDP} <: POMDP{Tuple{S, Int}, A, Tuple{O,In
     m::ConstrainedPOMDPWrapper{S,A,O,M}
     λ::Vector{Float64}
     initialized::Bool
+    h::Int
 end
 
-function CGCPProblem(m::ConstrainedPOMDPWrapper, λ::Vector{Float64}, initialized::Bool)
-    return CGCPProblem{statetype(m.m), actiontype(m.m), obstype(m.m), typeof(m.m)}(m.m, m, λ, initialized)
+function CGCPProblem(m::ConstrainedPOMDPWrapper, λ::Vector{Float64}, initialized::Bool, h::Int64)
+    return CGCPProblem{statetype(m.m), actiontype(m.m), obstype(m.m), typeof(m.m)}(m.m, m, λ, initialized, h)
 end
 
 struct CGCPSolution <: Policy
@@ -49,7 +51,8 @@ POMDPs.obstype(m::CGCPProblem) = obstype(m.m)
 POMDPs.initialstate(m::CGCPProblem) = initialstate(m.m)
 POMDPs.obsindex(m::CGCPProblem, o) = obsindex(m.m, o)
 POMDPs.transition(m::CGCPProblem, s, a) = transition(m.m, s, a)
-POMDPs.observation(m::CGCPProblem, a, s) = observation(m.m, a, s)
+POMDPs.observation(m::CGCPProblem, a, sp) = observation(m.m, a, sp)
+POMDPs.observation(m::CGCPProblem, s, a, sp) = observation(m.m, s, a, sp)
 POMDPTools.ordered_states(m::CGCPProblem) = ordered_states(m.m)
 POMDPTools.ordered_actions(m::CGCPProblem) = ordered_actions(m.m)
 POMDPTools.ordered_observations(m::CGCPProblem) = ordered_observations(m.m)
@@ -144,26 +147,41 @@ function evaluate_policy(m::CGCPProblem, policy, simmer::ConstrainedPOMDPs.Rollo
         end
     end
     m.λ = λ
-    @show total_v/n_sim, ceil.((total_c/n_sim),digits = 3)
 
     up = DiscreteUpdater(m)
     b0 = initialize_belief(up,initialstate(m))
     # pg = GenandEvalPG(m,up,policy,b0,5;rewardfunction=PG_reward)
-    pg_val = BeliefValue(m,up,policy,b0,5;rewardfunction=PG_reward)
+    @show m.h
+    @show m.m
+    pg_val = BeliefValue(m,up,policy,b0,m.h;rewardfunction=PG_reward)
+    @show pg_val
     v = pg_val[1]
     c = ceil.(pg_val[2:end],digits = 3)
+    @show total_v/n_sim, ceil.((total_c/n_sim),digits = 3)
     @show v,c
     return v,c
 end
 
 function compute_policy(m::CGCPProblem, λ::Vector{Float64}, τ::Float64, ρ::Float64)
     m.λ = λ
-    solver = PBVISolver(max_iter=5)
+    solver = PBVISolver(max_iter=20)
+    # solver = SARSOPSolver()
     return PBVI.solve(solver, m)
 end
 
 function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
-    M = CGCPProblem(pomdp,ones(length(pomdp.constraints)),false)
+    M = CGCPProblem(pomdp,ones(length(pomdp.constraints)),false,solver.h)
+
+    # up = DiscreteUpdater(pomdp.m)
+    # b0 = initialize_belief(up,initialstate(pomdp.m))
+    # pol = PBVI.solve(PBVISolver(max_iter=10),pomdp.m)
+    # BeliefValue(pomdp.m,up,pol,b0,solver.h)
+    # M.initialized=true
+    # pol2 = compute_policy(M, ones(length(pomdp.constraints)), 10.0, 0.0)
+    # BeliefValue(pomdp.m,up,pol2,b0,solver.h)
+
+    # @show solver.h
+    # @show M.h
     max_time = solver.max_time
     τ_inc = solver.τ_inc
     ρ = solver.ρ
@@ -179,7 +197,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
     ncols = 1
     t_0 = time()
     λ = ones(length(pomdp.constraints))
-    @until time() - t_0 >= max_time begin
+    # @until time() - t_0 >= max_time begin
         optimize!(mlp)
         λ = [shadow_price(dualcon)] #THIS IS LIKELY BROKEN
         # @show λ
@@ -202,7 +220,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
         push!(policy_vector , policy)
         λ_p = λ
         # @show (time() - t_0)
-    end
+    # end
 
     optimize!(mlp)
 
