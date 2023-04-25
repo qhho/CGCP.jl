@@ -1,10 +1,12 @@
-Base.@kwdef struct CGCPSolver{LP,P}
+Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     max_time::Float64   = 1e5
     max_iter::Int       = 100
     τ_inc::Float64      = 100.0
     ρ::Float64          = 3.0
     lp_solver::LP       = GLPK.Optimizer
     pomdp_solver::P     = PBVISolver(max_iter=5)
+    ϵ::Float64          = 1e-3
+    evaluator::EVAL     = MCEvaluator()
 end
 
 struct CGCPSolution <: Policy
@@ -21,7 +23,7 @@ function initial_policy(sol::CGCPSolver, m::CGCPProblem)
     m.initialized = false
     λ = ones(length(m.m.constraints))
     policy = compute_policy(sol, m, λ)
-    v, c = evaluate_policy(m, policy, RolloutSimulator(max_steps=100))
+    v, c = evaluate_policy(sol.evaluator, m, policy)
     return policy, v, c
 end
 
@@ -43,7 +45,7 @@ end
 
 function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
     t0 = time()
-    (;max_time, max_iter) = solver
+    (;max_time, max_iter, evaluator) = solver
     nc = constraint_size(pomdp)
     prob = CGCPProblem(pomdp, ones(nc), false)
     π0, v0, c0 = initial_policy(solver, prob)
@@ -61,7 +63,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
         iter += 1
 
         πt = compute_policy(solver,prob, λ)
-        v_t, c_t = evaluate_policy(prob, πt, RolloutSimulator(max_steps=100))
+        v_t, c_t = evaluate_policy(evaluator, prob, πt)
         push!(Π, πt)
         push!(V, v_t)
         C = hcat(C, c_t)
@@ -70,6 +72,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
         optimize!(lp)
         λ = dual(lp[:CONSTRAINT])
         push!(λ_hist, λ)
+        maximum(abs, λ .- λ_hist[end-1]) < solver.ϵ && break
     end
     return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist)
 end
