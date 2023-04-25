@@ -40,7 +40,7 @@ end
 PG_reward(m::CGCPProblem, s, a, sp) =  PG_reward(m, s, a)
 
 function PG_reward(m::CGCPProblem,s,a)
-    return [reward(m.m, s, a), ConstrainedPOMDPs.cost(m.m,s,a)...]
+    return vcat(reward(m.m, s, a), cost(m.m,s,a))
 end
 
 struct FunctionSARC{M} <: POMDPTools.StateActionReward
