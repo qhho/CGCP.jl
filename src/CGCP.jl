@@ -7,12 +7,12 @@ using PBVI
 using POMDPPolicyGraphs
 using POMDPTools
 using ConstrainedPOMDPs
-using RandomNumbers.Xorshifts
+using LinearAlgebra
 
-export
+export CGCPSolver
 
-    CGCPSolver
-
+include("problem.jl")
+include("evaluate.jl")
 include("solver.jl")
 
 end
