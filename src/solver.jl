@@ -25,6 +25,7 @@ function initial_policy(sol::CGCPSolver, m::CGCPProblem)
     λ = ones(length(m.m.constraints))
     policy = compute_policy(sol, m, λ)
     v, c = evaluate_policy(sol.evaluator, m, policy)
+    m.initialized = true
     return policy, v, c
 end
 
