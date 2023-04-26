@@ -9,13 +9,14 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     evaluator::EVAL     = MCEvaluator()
 end
 
-struct CGCPSolution <: Policy
-    policy_vector::Vector{POMDPTools.Policies.AlphaVectorPolicy}
-    p_pi::Vector{Float64}
-    mlp::JuMP.Model
-    C::Matrix{Float64}
-    V::Vector{Float64}
-    dual_vectors::Vector{Vector{Float64}}
+mutable struct CGCPSolution <: Policy
+    const policy_vector::Vector{AlphaVectorPolicy}
+    const p_pi::Vector{Float64}
+    const mlp::JuMP.Model
+    const C::Matrix{Float64}
+    const V::Vector{Float64}
+    const dual_vectors::Vector{Vector{Float64}}
+    policy_idx::Int
 end
 
 ##
@@ -74,17 +75,36 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
         push!(λ_hist, λ)
         maximum(abs, λ .- λ_hist[end-1]) < solver.ϵ && break
     end
-    return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist)
+    return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0)
 end
 
-function POMDPs.action(policy::CGCPSolution, x)
-    return action(last(policy.policy_vector), x)
+reset!(p::CGCPSolution) = p.policy_idx = 0
+
+function initialize!(p::CGCPSolution)
+    probs = p.p_pi
+    p.policy_idx = rand(SparseCat(eachindex(probs), probs))
+    p
 end
 
-function POMDPs.value(policy::CGCPSolution, s)
-    return value(last(policy.policy_vector), s)
+function POMDPs.action(p::CGCPSolution, b)
+    iszero(p.policy_idx) && initialize!(p)
+    return action(p.policy_vector[p.policy_idx], b)
 end
 
-function POMDPs.value(policy::CGCPSolution, s, a)
-    return value(last(policy.policy_vector), s, a)
+# FIXME: this is using lagrangian values, not pure constrained reward values
+function POMDPs.value(p::CGCPSolution, b)
+    return iszero(p.policy_idx) ? probabilistic_value(p, b) : deterministic_value(p, b)
+end
+
+function probabilistic_value(p::CGCPSolution, b)
+    v = 0.0
+    for (π_i, p_i) ∈ zip(p.policy_vector, p.p_pi)
+        v += p_i*POMDPs.value(π_i, b)
+    end
+    return v
+end
+
+function deterministic_value(p::CGCPSolution, b)
+    @assert !iszero(p.policy_idx)
+    return POMDPs.value(p.policy_vector[p.policy_idx], b)
 end

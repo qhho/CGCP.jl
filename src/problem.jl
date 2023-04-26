@@ -1,15 +1,10 @@
-mutable struct CGCPProblem{S,A,O,M<:POMDP} <: POMDP{Tuple{S, Int}, A, Tuple{O,Int}}
-    _pomdp::M
+mutable struct CGCPProblem{S,A,O,M<:POMDP} <: POMDP{S, A, O}
     m::ConstrainedPOMDPWrapper{S,A,O,M}
     λ::Vector{Float64}
     initialized::Bool
 end
 
-function CGCPProblem(m::ConstrainedPOMDPWrapper, λ::Vector{Float64}, initialized::Bool)
-    return CGCPProblem{statetype(m.m), actiontype(m.m), obstype(m.m), typeof(m.m)}(m.m, m, λ, initialized)
-end
-
-##Functions for Simulating Weighted Sums
+CGCPProblem(m::ConstrainedPOMDPWrapper, λ, initialized=false) = CGCPProblem(m, λ, initialized)
 
 POMDPs.states(m::CGCPProblem) = states(m.m)
 POMDPs.actions(w::CGCPProblem) = actions(w.m)
@@ -33,24 +28,6 @@ function POMDPs.reward(m::CGCPProblem, s, a)
     return m.initialized*reward(m.m, s, a) - dot(m.λ,cost(m.m,s,a))
 end
 
-function StateActionReward(m)
-    return FunctionSARC(m)
-end
-
 PG_reward(m::CGCPProblem, s, a, sp) =  PG_reward(m, s, a)
 
-function PG_reward(m::CGCPProblem,s,a)
-    return vcat(reward(m.m, s, a), cost(m.m,s,a))
-end
-
-struct FunctionSARC{M} <: POMDPTools.StateActionReward
-    m::M
-end
-
-function (sarc::FunctionSARC)(s, a)
-    if isterminal(sarc.m, s)
-        return 0.0
-    else
-        return m.initialized*reward(sarc.m.m, s, a) - sarc.m.λ*ConstrainedPOMDPs.cost(sarc.m, s, a)
-    end
-end
+PG_reward(m::CGCPProblem,s,a) = vcat(reward(m.m, s, a), cost(m.m,s,a))
