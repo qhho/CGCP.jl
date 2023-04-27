@@ -40,7 +40,10 @@ function master_lp(solver::CGCPSolver, m::CGCPProblem, C, V)
     Ĉ = constraints(m.m)
     @variable(lp, x[1:n] ≥ 0)
     @objective(lp, Max, dot(V, x))
-    @constraint(lp, CONSTRAINT, C*x ≤ Ĉ)
+
+    # NOTE: constraint this way around keeps λ ≥ 0???
+    # using C*x ≤ Ĉ causes λ ≤ 0
+    @constraint(lp, CONSTRAINT, Ĉ ≥ C*x) 
     @constraint(lp, SIMPLEX, sum(x) == 1.0)
     return lp
 end
