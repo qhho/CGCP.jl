@@ -7,6 +7,7 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     pomdp_solver::P     = PBVISolver(max_iter=5)
     ϵ::Float64          = 1e-3
     evaluator::EVAL     = MCEvaluator()
+    verbose::Bool       = false
 end
 
 mutable struct CGCPSolution <: Policy
@@ -50,7 +51,7 @@ end
 
 function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
     t0 = time()
-    (;max_time, max_iter, evaluator) = solver
+    (;max_time, max_iter, evaluator, verbose) = solver
     nc = constraint_size(pomdp)
     prob = CGCPProblem(pomdp, ones(nc), false)
     π0, v0, c0 = initial_policy(solver, prob)
@@ -77,7 +78,15 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
         optimize!(lp)
         λ = dual(lp[:CONSTRAINT])
         push!(λ_hist, λ)
-        maximum(abs, λ .- λ_hist[end-1]) < solver.ϵ && break
+        δ = maximum(abs, λ .- λ_hist[end-1])
+        verbose && println("""
+            c = $c_t
+            v = $v_t
+            λ = $λ
+            δ = $δ
+        ----------------------------------------------------
+        """)
+        δ < solver.ϵ && break
     end
     return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0)
 end
