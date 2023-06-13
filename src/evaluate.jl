@@ -56,11 +56,12 @@ end
 ##
 Base.@kwdef struct PolicyGraphEvaluator
     h::Int = typemax(Int) # seems a bit excessive
+    method::Function = recursive_evaluation
 end
 
 function evaluate_policy(eval::PolicyGraphEvaluator, m::CGCPProblem, policy)
     up = DiscreteUpdater(m.m.m)
     b0 = initialize_belief(up,initialstate(m))
-    v,c... = BeliefValue(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
+    v,c... = eval.method(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
     return v,c
 end
