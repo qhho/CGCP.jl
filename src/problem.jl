@@ -1,10 +1,10 @@
-mutable struct CGCPProblem{S,A,O,M<:POMDP} <: POMDP{S, A, O}
-    m::ConstrainedPOMDPWrapper{S,A,O,M}
+mutable struct CGCPProblem{S,A,O} <: POMDP{S, A, O}
+    m::CPOMDP{S,A,O}
     λ::Vector{Float64}
     initialized::Bool
 end
 
-CGCPProblem(m::ConstrainedPOMDPWrapper, λ, initialized=false) = CGCPProblem(m, λ, initialized)
+CGCPProblem(m::CPOMDP, λ, initialized=false) = CGCPProblem(m, λ, initialized)
 
 POMDPs.states(m::CGCPProblem) = states(m.m)
 POMDPs.actions(w::CGCPProblem) = actions(w.m)
@@ -25,9 +25,9 @@ POMDPTools.ordered_observations(m::CGCPProblem) = ordered_observations(m.m)
 POMDPs.reward(m::CGCPProblem, s, a, sp) =  reward(m::CGCPProblem, s, a)
 
 function POMDPs.reward(m::CGCPProblem, s, a)
-    return m.initialized*reward(m.m, s, a) - dot(m.λ,cost(m.m,s,a))
+    return m.initialized*reward(m.m, s, a) - dot(m.λ,costs(m.m,s,a))
 end
 
 PG_reward(m::CGCPProblem, s, a, sp) =  PG_reward(m, s, a)
 
-PG_reward(m::CGCPProblem,s,a) = vcat(reward(m.m, s, a), cost(m.m,s,a))
+PG_reward(m::CGCPProblem,s,a) = vcat(reward(m.m, s, a), costs(m.m,s,a))

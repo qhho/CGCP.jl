@@ -49,7 +49,7 @@ function master_lp(solver::CGCPSolver, m::CGCPProblem, C, V)
     return lp
 end
 
-function POMDPs.solve(solver::CGCPSolver, pomdp::ConstrainedPOMDPWrapper)
+function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     t0 = time()
     (;max_time, max_iter, evaluator, verbose) = solver
     nc = constraint_size(pomdp)

@@ -9,7 +9,7 @@ using RockSample
 
 m = RockSamplePOMDP(5, 7)
 
-function ConstrainedPOMDPs.cost(m, s, a)
+function ConstrainedPOMDPs.costs(m, s, a)
     # @show a
     # @show reward(m, s, a)
     if a > 5

@@ -1,5 +1,5 @@
-include("restore_unregistered.jl")
-using CGCP
+# include("restore_unregistered.jl")
+# using CGCP
 using POMDPs
 using POMDPModels
 using ConstrainedPOMDPs
@@ -20,8 +20,10 @@ end
 
 @testset "tiger" begin
     ĉ = [1.0]
-    c_tiger = Constrain(TigerPOMDP(), ĉ)
-    ConstrainedPOMDPs.cost(m::typeof(c_tiger), s, a) = iszero(a) ? [1.0] : [0.0]
+
+    c_tiger = constrain(TigerPOMDP(), ĉ) do s,a
+        iszero(a) ? [1.0] : [0.0]
+    end
 
     sol = CGCPSolver()
     p = solve(sol, c_tiger)

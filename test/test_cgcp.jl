@@ -13,7 +13,7 @@ m = Constrain(pomdp, [1.0])
 # policy = solve(solver, m)
 # evaluate_policy(m, policy, simmer)
 
-function ConstrainedPOMDPs.cost(m, s, a)
+function ConstrainedPOMDPs.costs(m, s, a)
     if a == 0
         return [10.0]
     elseif a == 2
