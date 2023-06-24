@@ -1,7 +1,7 @@
 Base.@kwdef struct MCEvaluator
-    n::Int         = 100
+    n::Int         = 10000 #100
     parallel::Bool = false
-    max_steps::Int = 100
+    max_steps::Int = 1000 #100
 end
 
 function evaluate_policy(eval::MCEvaluator, m::CGCPProblem, policy)
@@ -56,7 +56,7 @@ end
 ##
 Base.@kwdef struct PolicyGraphEvaluator
     h::Int = typemax(Int) # seems a bit excessive
-    method::Function = recursive_evaluation
+    method::Function = belief_value_polgraph
 end
 
 function evaluate_policy(eval::PolicyGraphEvaluator, m::CGCPProblem, policy)
