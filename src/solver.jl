@@ -6,7 +6,7 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     lp_solver::LP       = GLPK.Optimizer
     pomdp_solver::P     = PBVISolver(max_iter=5)
     ϵ::Float64          = 1e-3
-    evaluator::EVAL     = MCEvaluator()
+    evaluator::EVAL     = PolicyGraphEvaluator() #MCEvaluator()
     verbose::Bool       = false
 end
 
@@ -18,6 +18,8 @@ mutable struct CGCPSolution <: Policy
     const V::Vector{Float64}
     const dual_vectors::Vector{Vector{Float64}}
     policy_idx::Int
+    const problem::CGCPProblem
+    const evaluator::Union{PolicyGraphEvaluator,MCEvaluator}
 end
 
 ##
@@ -25,7 +27,10 @@ function initial_policy(sol::CGCPSolver, m::CGCPProblem)
     m.initialized = false
     λ = ones(length(m.m.constraints))
     policy = compute_policy(sol, m, λ)
-    v, c = evaluate_policy(sol.evaluator, m, policy)
+    # @show m
+    # @show evaluate_policy(PolicyGraphEvaluator(), deepcopy(m), deepcopy(policy))
+    # @show m
+    @show  v, c = evaluate_policy(sol.evaluator, m, policy)
     m.initialized = true
     return policy, v, c
 end
@@ -70,6 +75,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
 
         πt = compute_policy(solver,prob, λ)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)
+        # @show evaluate_policy(PolicyGraphEvaluator(), prob, πt)
         push!(Π, πt)
         push!(V, v_t)
         C = hcat(C, c_t)
@@ -88,7 +94,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         """)
         δ < solver.ϵ && break
     end
-    return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0)
+    return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
 end
 
 reset!(p::CGCPSolution) = p.policy_idx = 0
@@ -104,7 +110,7 @@ function POMDPs.action(p::CGCPSolution, b)
     return action(p.policy_vector[p.policy_idx], b)
 end
 
-# FIXME: this is using lagrangian values, not pure constrained reward values
+
 function POMDPs.value(p::CGCPSolution, b)
     return iszero(p.policy_idx) ? probabilistic_value(p, b) : deterministic_value(p, b)
 end
@@ -112,12 +118,25 @@ end
 function probabilistic_value(p::CGCPSolution, b)
     v = 0.0
     for (π_i, p_i) ∈ zip(p.policy_vector, p.p_pi)
-        v += p_i*POMDPs.value(π_i, b)
+        v += p_i*evaluate_policy(p.evaluator, p.problem, π_i, b)[1]
     end
     return v
 end
 
 function deterministic_value(p::CGCPSolution, b)
+    @assert !iszero(p.policy_idx)
+    return evaluate_policy(p.evaluator, p.problem, p.policy_vector[p.policy_idx], b)[1]
+end
+
+function lagrange_probabilistic_value(p::CGCPSolution, b)
+    v = 0.0
+    for (π_i, p_i) ∈ zip(p.policy_vector, p.p_pi)
+        v += p_i*POMDPs.value(π_i, b)
+    end
+    return v
+end
+
+function lagrange_deterministic_value(p::CGCPSolution, b)
     @assert !iszero(p.policy_idx)
     return POMDPs.value(p.policy_vector[p.policy_idx], b)
 end

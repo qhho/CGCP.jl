@@ -9,12 +9,16 @@ using SARSOP
 using LinearAlgebra
 
 @testset "rock" begin
-    ĉ = [1.0]
     c_rs = RockSampleCPOMDP()
 
-    sol = CGCPSolver(;max_time=10.0,verbose=true)
+    sol = CGCPSolver(;max_time=60.0,verbose=true,evaluator=PolicyGraphEvaluator())
     p = solve(sol, c_rs)
+    ĉ = c_rs.constraints
     (;C,p_pi) = p
+    @show C
+    @show p_pi
+    @info C*p_pi
+    @info ĉ
     @test C*p_pi ≈ ĉ
 end
 
@@ -25,9 +29,13 @@ end
         iszero(a) ? [1.0] : [0.0]
     end
 
-    sol = CGCPSolver()
+    sol = CGCPSolver(;verbose=true,evaluator=PolicyGraphEvaluator())
     p = solve(sol, c_tiger)
     (;C,p_pi) = p
+    @show C
+    @show p_pi
+    @info C*p_pi
+    @info ĉ
     @test C*p_pi ≈ ĉ
 end
 
