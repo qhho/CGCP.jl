@@ -10,7 +10,10 @@ using ConstrainedPOMDPs
 using LinearAlgebra
 using Random
 
-export CGCPSolver
+export
+CGCPSolver,
+MCEvaluator,
+PolicyGraphEvaluator
 
 include("problem.jl")
 include("evaluate.jl")

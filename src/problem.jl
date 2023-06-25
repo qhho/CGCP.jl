@@ -23,6 +23,7 @@ POMDPTools.ordered_states(m::CGCPProblem) = ordered_states(m.m)
 POMDPTools.ordered_actions(m::CGCPProblem) = ordered_actions(m.m)
 POMDPTools.ordered_observations(m::CGCPProblem) = ordered_observations(m.m)
 POMDPs.reward(m::CGCPProblem, s, a, sp) =  reward(m::CGCPProblem, s, a)
+POMDPs.isterminal(m::CGCPProblem, s) =  isterminal(m.m, s)
 
 function POMDPs.reward(m::CGCPProblem, s, a)
     return m.initialized*reward(m.m, s, a) - dot(m.λ,costs(m.m,s,a))
