@@ -4,7 +4,7 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     τ_inc::Float64      = 100.0
     ρ::Float64          = 3.0
     lp_solver::LP       = GLPK.Optimizer
-    pomdp_solver::P     = PBVISolver(max_iter=5)
+    pomdp_solver::P     = PBVISolver(max_iter=10)
     ϵ::Float64          = 1e-3
     evaluator::EVAL     = PolicyGraphEvaluator() #MCEvaluator()
     verbose::Bool       = false
