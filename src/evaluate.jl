@@ -32,11 +32,10 @@ function serial_evaluate(eval::MCEvaluator, m::CGCPProblem, policy)
     return v̂, ĉ
 end
 
-# FIXME: make threadsafe
 function parallel_evaluate(eval::MCEvaluator, m::CGCPProblem, policy)
     (;n, max_steps) = eval
-    total_v = 0.0
-    total_c = zeros(constraint_size(m.m))
+    total_v = zeros(n)
+    total_c = [zeros(constraint_size(m.m)) for _ in 1:n]
     Threads.@threads for i in 1:n
         v, c = ConstrainedPOMDPs.simulate(
             RolloutSimulator(;max_steps, rng=Random.default_rng()),
@@ -45,11 +44,11 @@ function parallel_evaluate(eval::MCEvaluator, m::CGCPProblem, policy)
             initialstate(m), 
             rand(initialstate(m))
         )
-        total_v += v
-        total_c .+= c
+        total_v[i] = v
+        total_c[i] .= c
     end
-    v̂ = total_v / n
-    ĉ = total_c ./ n
+    v̂ = mean(total_v)
+    ĉ = mean(total_c)
     return v̂, ĉ
 end
 
