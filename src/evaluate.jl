@@ -52,6 +52,12 @@ function parallel_evaluate(eval::MCEvaluator, m::CGCPProblem, policy)
     return v̂, ĉ
 end
 
+function evaluate_policy(eval::MCEvaluator, m::CGCPProblem, policy, b)
+    up = DiscreteUpdater(m.m)
+    b0 = initialize_belief(up,b)
+    return  evaluate_policy(eval, m, policy, b0)
+end
+
 function evaluate_policy(eval::MCEvaluator, m::CGCPProblem, policy, b::DiscreteBelief)
     return if eval.parallel && Threads.nthreads() > 1
         parallel_evaluate(eval, m, policy, b)
