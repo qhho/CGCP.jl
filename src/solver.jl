@@ -4,7 +4,7 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     τ_inc::Float64      = 100.0
     ρ::Float64          = 3.0
     lp_solver::LP       = GLPK.Optimizer
-    pomdp_solver::P     = PBVISolver(max_iter=10)
+    pomdp_solver::P     = PBVISolver(max_iter=100000,max_time=5.0) #max_iter=400,init=PBVI.BlindLowerBound(max_iter=10,max_time=Inf))#,rng=MersenneTwister(5))
     ϵ::Float64          = 1e-3
     evaluator::EVAL     = PolicyGraphEvaluator() #MCEvaluator()
     verbose::Bool       = false
@@ -28,9 +28,10 @@ function initial_policy(sol::CGCPSolver, m::CGCPProblem)
     λ = ones(length(m.m.constraints))
     policy = compute_policy(sol, m, λ)
     # @show m
-    # @show evaluate_policy(PolicyGraphEvaluator(), deepcopy(m), deepcopy(policy))
+    # @show evaluate_policy(PolicyGraphEvaluator(;method=belief_value_recursive), deepcopy(m), deepcopy(policy))
+    # @show evaluate_policy(MCEvaluator(), deepcopy(m), deepcopy(policy))
     # @show m
-    @show  v, c = evaluate_policy(sol.evaluator, m, policy)
+    v, c = evaluate_policy(sol.evaluator, m, policy)
     m.initialized = true
     return policy, v, c
 end
@@ -57,6 +58,7 @@ end
 function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     t0 = time()
     (;max_time, max_iter, evaluator, verbose) = solver
+    # @show max_time
     nc = constraint_size(pomdp)
     prob = CGCPProblem(pomdp, ones(nc), false)
     π0, v0, c0 = initial_policy(solver, prob)
@@ -67,14 +69,18 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     lp = master_lp(solver, prob, C,V)
     optimize!(lp)
     λ = dual(lp[:CONSTRAINT])
+    # @show λ
     λ_hist = [λ]
 
     iter = 0
     while time() - t0 < max_time && iter < max_iter
         iter += 1
-
+        # @show iter
         πt = compute_policy(solver,prob, λ)
+        # @show length(πt.alphas)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)
+        # @show evaluate_policy(PolicyGraphEvaluator(;method=belief_value_recursive), deepcopy(prob), deepcopy(πt))
+        # @show evaluate_policy(MCEvaluator(), deepcopy(prob), deepcopy(πt))
         # @show evaluate_policy(PolicyGraphEvaluator(), prob, πt)
         push!(Π, πt)
         push!(V, v_t)

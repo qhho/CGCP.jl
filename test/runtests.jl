@@ -39,4 +39,19 @@ end
     @test C*p_pi ≈ ĉ
 end
 
+@testset "minihall" begin
+    c_mh = MiniHallCPOMDP([4.0])
+
+    sol = CGCPSolver(;max_iter=15,max_time=1000.0,verbose=true,evaluator=PolicyGraphEvaluator()) #;method=POMDPPolicyGraphs.belief_value_recursive))
+    p = solve(sol, c_mh)
+    @info "Policy value is: $(value(p,initialstate(c_mh)))"
+    ĉ = c_mh.constraints
+    (;C,p_pi) = p
+    @show C
+    @show p_pi
+    @info C*p_pi
+    @info ĉ
+    @test C*p_pi ≈ ĉ
+end
+
 include("trivial.jl")
