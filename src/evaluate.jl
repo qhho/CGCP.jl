@@ -1,5 +1,5 @@
 Base.@kwdef struct MCEvaluator
-    n::Int         = 1000 #100
+    n::Int         = 10000 #100
     parallel::Bool = false
     max_steps::Int = 1000 #100
 end
@@ -89,8 +89,8 @@ end
 # FIXME: make threadsafe
 function parallel_evaluate(eval::MCEvaluator, m::CGCPProblem, policy, b)
     (;n, max_steps) = eval
-    total_v = 0.0
-    total_c = zeros(constraint_size(m.m))
+    total_v = zeros(n)
+    total_c = [zeros(constraint_size(m.m)) for _ in 1:n]
     Threads.@threads for i in 1:n
         v, c = ConstrainedPOMDPs.simulate(
             RolloutSimulator(;max_steps, rng=Random.default_rng()),
@@ -99,30 +99,47 @@ function parallel_evaluate(eval::MCEvaluator, m::CGCPProblem, policy, b)
             b, 
             rand(b)
         )
-        total_v += v
-        total_c .+= c
+        total_v[i] = v
+        total_c[i] .= c
     end
-    v̂ = total_v / n
-    ĉ = total_c ./ n
+    v̂ = mean(total_v)
+    ĉ = mean(total_c)
     return v̂, ĉ
 end
 
 ##
 Base.@kwdef struct PolicyGraphEvaluator
-    h::Int = 100 #typemax(Int) # seems a bit excessive
-    method::Function = belief_value_polgraph
+    h::Int = 200 #typemax(Int)
 end
 
 function evaluate_policy(eval::PolicyGraphEvaluator, m::CGCPProblem, policy)
     up = DiscreteUpdater(m.m)
     b0 = initialize_belief(up,initialstate(m))
-    v,c... = eval.method(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
+    v,c... = belief_value_polgraph(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
     return v,c
 end
 
 function evaluate_policy(eval::PolicyGraphEvaluator, m::CGCPProblem, policy, b)
     up = DiscreteUpdater(m.m)
     b0 = initialize_belief(up,b)
-    v,c... = eval.method(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
+    v,c... = belief_value_polgraph(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
+    return v,c
+end
+
+Base.@kwdef struct RecursiveEvaluator
+    h::Int = 200 #typemax(Int) # seems a bit excessive
+end
+
+function evaluate_policy(eval::RecursiveEvaluator, m::CGCPProblem, policy)
+    up = DiscreteUpdater(m.m)
+    b0 = initialize_belief(up,initialstate(m))
+    v,c... = belief_value_recursive(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
+    return v,c
+end
+
+function evaluate_policy(eval::RecursiveEvaluator, m::CGCPProblem, policy, b)
+    up = DiscreteUpdater(m.m)
+    b0 = initialize_belief(up,b)
+    v,c... = belief_value_recursive(m, up, policy, b0, eval.h; rewardfunction=PG_reward)
     return v,c
 end

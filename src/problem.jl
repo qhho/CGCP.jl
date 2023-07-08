@@ -26,7 +26,11 @@ POMDPs.reward(m::CGCPProblem, s, a, sp) =  reward(m::CGCPProblem, s, a)
 POMDPs.isterminal(m::CGCPProblem, s) =  isterminal(m.m, s)
 
 function POMDPs.reward(m::CGCPProblem, s, a)
-    return m.initialized*reward(m.m, s, a) - dot(m.λ,costs(m.m,s,a))
+    if !isterminal(m,s)
+        return m.initialized*reward(m.m, s, a) - dot(m.λ,costs(m.m,s,a))
+    else
+        return 0.0
+    end
 end
 
 PG_reward(m::CGCPProblem, s, a, sp) =  PG_reward(m, s, a)

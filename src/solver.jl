@@ -4,9 +4,9 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     τ_inc::Float64      = 100.0
     ρ::Float64          = 3.0
     lp_solver::LP       = GLPK.Optimizer
-    pomdp_solver::P     = PBVISolver(max_iter=100000,max_time=5.0) #max_iter=400,init=PBVI.BlindLowerBound(max_iter=10,max_time=Inf))#,rng=MersenneTwister(5))
+    pomdp_solver::P     = SARSOP.SARSOPSolver(verbose=false,precision=1.0)#PBVISolver(max_time=5.0,max_iter=typemax(Int)) #SARSOPSolver(max_time=100.0,precision=.0000001) #max_iter=400,init=PBVI.BlindLowerBound(max_iter=10,max_time=Inf))#,rng=MersenneTwister(5))
     ϵ::Float64          = 1e-3
-    evaluator::EVAL     = PolicyGraphEvaluator() #MCEvaluator()
+    evaluator::EVAL     = MCEvaluator() #PolicyGraphEvaluator() #MCEvaluator()
     verbose::Bool       = false
 end
 
@@ -25,6 +25,10 @@ end
 ##
 function initial_policy(sol::CGCPSolver, m::CGCPProblem)
     m.initialized = false
+
+    # m.initialized = true
+    # λ = zeros(length(m.m.constraints))
+
     λ = ones(length(m.m.constraints))
     policy = compute_policy(sol, m, λ)
     # @show m
@@ -38,7 +42,29 @@ end
 
 function compute_policy(sol::CGCPSolver, m::CGCPProblem, λ::Vector{Float64})
     m.λ = λ
-    return solve(sol.pomdp_solver, m)
+    # @show m.initialized
+    # @show NativeSARSOP.ModifiedSparseTabular(m).R == PBVI.ModifiedSparseTabular(m).R
+    # @show NativeSARSOP.ModifiedSparseTabular(m).R
+    # @show PBVI.ModifiedSparseTabular(m).R
+    # @show !isterminal(m,13)
+    s_pol = solve(sol.pomdp_solver,m) #max_time=100.0,precision=0.000001,epsilon=0.00001
+    # p_pol = solve(PBVISolver(max_time=5.0,max_iter=typemax(Int)), m)
+    # b_test = initialize_belief(DiscreteUpdater(m),initialstate(m))
+    # @show POMDPs.value(s_pol,b_test)
+    # @show POMDPs.value(p_pol,b_test)
+    # n = 10000
+    # @show hist = mean([n_steps(simulate(HistoryRecorder(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test)) for _ in 1:n])
+    # @show action_hist(simulate(HistoryRecorder(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test))
+    # @show reward_hist(simulate(HistoryRecorder(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test))
+    # res_1= [simulate(RolloutSimulator(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test) for _ in 1:n]
+    # res_2 = [simulate(RolloutSimulator(max_steps=1000),m,p_pol,DiscreteUpdater(m),b_test) for _ in 1:n]
+    # @show mean(res_1) #, 3*std(res_1)/sqrt(n))
+    # @show mean(res_2) #, 3*std(res_2)/sqrt(n))
+    # @show action(s_pol,b_test)
+    # @show action(p_pol,b_test)
+    # @show s_pol.action_map
+    # @show p_pol.action_map
+    return  s_pol #solve(sol.pomdp_solver, m)
 end
 
 function master_lp(solver::CGCPSolver, m::CGCPProblem, C, V)
@@ -77,6 +103,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         iter += 1
         # @show iter
         πt = compute_policy(solver,prob, λ)
+        # @show POMDPs.value(πt,initialize_belief(DiscreteUpdater(m),initialstate(m)))
         # @show length(πt.alphas)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)
         # @show evaluate_policy(PolicyGraphEvaluator(;method=belief_value_recursive), deepcopy(prob), deepcopy(πt))
@@ -90,6 +117,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         optimize!(lp)
         λ = dual(lp[:CONSTRAINT])
         push!(λ_hist, λ)
+        # @show λ_hist
         δ = maximum(abs, λ .- λ_hist[end-1])
         verbose && println("""
             c = $c_t

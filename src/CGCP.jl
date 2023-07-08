@@ -4,6 +4,8 @@ using JuMP
 using POMDPs
 import GLPK
 using PBVI
+import NativeSARSOP
+import SARSOP
 using POMDPPolicyGraphs
 using POMDPTools
 using ConstrainedPOMDPs
@@ -13,7 +15,8 @@ using Random
 export
 CGCPSolver,
 MCEvaluator,
-PolicyGraphEvaluator
+PolicyGraphEvaluator,
+RecursiveEvaluator
 
 include("problem.jl")
 include("evaluate.jl")
