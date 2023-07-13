@@ -4,7 +4,7 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     τ_inc::Float64      = 100.0
     ρ::Float64          = 3.0
     lp_solver::LP       = GLPK.Optimizer
-    pomdp_solver::P     = SARSOP.SARSOPSolver(verbose=false,precision=1.0)#PBVISolver(max_time=5.0,max_iter=typemax(Int)) #SARSOPSolver(max_time=100.0,precision=.0000001) #max_iter=400,init=PBVI.BlindLowerBound(max_iter=10,max_time=Inf))#,rng=MersenneTwister(5))
+    pomdp_solver::P     = SARSOP.SARSOPSolver(precision=1.0,verbose=false) #NativeSARSOP.SARSOPSolver(verbose=false,precision=1.0,delta=0.2,max_time=0.5)#PBVISolver(max_time=5.0,max_iter=typemax(Int)) #SARSOPSolver(max_time=100.0,precision=.0000001) #max_iter=400,init=PBVI.BlindLowerBound(max_iter=10,max_time=Inf))#,rng=MersenneTwister(5))
     ϵ::Float64          = 1e-3
     evaluator::EVAL     = MCEvaluator() #PolicyGraphEvaluator() #MCEvaluator()
     verbose::Bool       = false
@@ -19,7 +19,7 @@ mutable struct CGCPSolution <: Policy
     const dual_vectors::Vector{Vector{Float64}}
     policy_idx::Int
     const problem::CGCPProblem
-    const evaluator::Union{PolicyGraphEvaluator,MCEvaluator}
+    const evaluator::Union{PolicyGraphEvaluator,RecursiveEvaluator,MCEvaluator}
 end
 
 ##
@@ -94,7 +94,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
 
     lp = master_lp(solver, prob, C,V)
     optimize!(lp)
-    λ = dual(lp[:CONSTRAINT])
+    λ = dual(lp[:CONSTRAINT])::Vector{Float64}
     # @show λ
     λ_hist = [λ]
 
@@ -115,7 +115,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
 
         lp = master_lp(solver,prob,C,V)
         optimize!(lp)
-        λ = dual(lp[:CONSTRAINT])
+        λ = dual(lp[:CONSTRAINT])::Vector{Float64}
         push!(λ_hist, λ)
         # @show λ_hist
         δ = maximum(abs, λ .- λ_hist[end-1])

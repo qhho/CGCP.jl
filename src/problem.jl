@@ -1,7 +1,11 @@
-mutable struct CGCPProblem{S,A,O} <: POMDP{S, A, O}
-    m::CPOMDP{S,A,O}
+mutable struct CGCPProblem{P<:CPOMDP,S,A,O} <: POMDP{S, A, O}
+    m::P
     λ::Vector{Float64}
     initialized::Bool
+end
+
+function CGCPProblem(m::CPOMDP,λ::Vector{Float64},initialized::Bool)
+    return CGCPProblem{typeof(m),statetype(m),actiontype(m),obstype(m)}(m,λ,initialized)
 end
 
 CGCPProblem(m::CPOMDP, λ, initialized=false) = CGCPProblem(m, λ, initialized)
