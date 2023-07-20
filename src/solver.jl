@@ -4,7 +4,7 @@ Base.@kwdef struct CGCPSolver{LP, P, EVAL}
     τ_inc::Float64      = 100.0
     ρ::Float64          = 3.0
     lp_solver::LP       = GLPK.Optimizer
-    pomdp_solver::P     = NativeSARSOP.SARSOPSolver(verbose=false,precision=1.0,delta=1.0,max_time=5.0,epsilon=1.0)#SARSOP.SARSOPSolver(precision=1.0,verbose=false,timeout=5.0) #NativeSARSOP.SARSOPSolver(verbose=false,precision=1.0,delta=0.2,max_time=0.5)#PBVISolver(max_time=5.0,max_iter=typemax(Int))
+    pomdp_solver::P     = SARSOP.SARSOPSolver(precision=1.0,verbose=false,timeout=5.0)#NativeSARSOP.SARSOPSolver(verbose=false,precision=1.0,delta=1.0,max_time=5.0,epsilon=1.0)#SARSOP.SARSOPSolver(precision=1.0,verbose=false,timeout=5.0) #NativeSARSOP.SARSOPSolver(verbose=false,precision=1.0,delta=0.2,max_time=0.5)#PBVISolver(max_time=5.0,max_iter=typemax(Int))
     ϵ::Float64          = 1e-3
     evaluator::EVAL     = MCEvaluator() #PolicyGraphEvaluator() #MCEvaluator()
     verbose::Bool       = false
@@ -23,14 +23,14 @@ mutable struct CGCPSolution <: Policy
 end
 
 ##
-function initial_policy(sol::CGCPSolver, m::CGCPProblem)
+function initial_policy(sol::CGCPSolver, m::CGCPProblem, pomdp_solver)
     m.initialized = false
 
     # m.initialized = true
     # λ = zeros(length(m.m.constraints))
 
     λ = ones(length(m.m.constraints))
-    policy = compute_policy(sol, m, λ)
+    policy = compute_policy(pomdp_solver, m, λ)
     # @show m
     # @show evaluate_policy(PolicyGraphEvaluator(;method=belief_value_recursive), deepcopy(m), deepcopy(policy))
     # @show evaluate_policy(MCEvaluator(), deepcopy(m), deepcopy(policy))
@@ -40,31 +40,10 @@ function initial_policy(sol::CGCPSolver, m::CGCPProblem)
     return policy, v, c
 end
 
-function compute_policy(sol::CGCPSolver, m::CGCPProblem, λ::Vector{Float64})
+function compute_policy(sol, m::CGCPProblem, λ::Vector{Float64})
     m.λ = λ
-    # @show m.initialized
-    # @show NativeSARSOP.ModifiedSparseTabular(m).R == PBVI.ModifiedSparseTabular(m).R
-    # @show NativeSARSOP.ModifiedSparseTabular(m).R
-    # @show PBVI.ModifiedSparseTabular(m).R
-    # @show !isterminal(m,13)
-    s_pol = solve(sol.pomdp_solver,m) #max_time=100.0,precision=0.000001,epsilon=0.00001
-    # p_pol = solve(PBVISolver(max_time=5.0,max_iter=typemax(Int)), m)
-    # b_test = initialize_belief(DiscreteUpdater(m),initialstate(m))
-    # @show POMDPs.value(s_pol,b_test)
-    # @show POMDPs.value(p_pol,b_test)
-    # n = 10000
-    # @show hist = mean([n_steps(simulate(HistoryRecorder(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test)) for _ in 1:n])
-    # @show action_hist(simulate(HistoryRecorder(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test))
-    # @show reward_hist(simulate(HistoryRecorder(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test))
-    # res_1= [simulate(RolloutSimulator(max_steps=1000),m,s_pol,DiscreteUpdater(m),b_test) for _ in 1:n]
-    # res_2 = [simulate(RolloutSimulator(max_steps=1000),m,p_pol,DiscreteUpdater(m),b_test) for _ in 1:n]
-    # @show mean(res_1) #, 3*std(res_1)/sqrt(n))
-    # @show mean(res_2) #, 3*std(res_2)/sqrt(n))
-    # @show action(s_pol,b_test)
-    # @show action(p_pol,b_test)
-    # @show s_pol.action_map
-    # @show p_pol.action_map
-    return  s_pol #solve(sol.pomdp_solver, m)
+    s_pol = solve(sol,m) 
+    return  s_pol
 end
 
 function master_lp(solver::CGCPSolver, m::CGCPProblem, C, V)
@@ -84,10 +63,13 @@ end
 function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     t0 = time()
     (;max_time, max_iter, evaluator, verbose) = solver
-    # @show max_time
     nc = constraint_size(pomdp)
     prob = CGCPProblem(pomdp, ones(nc), false)
-    π0, v0, c0 = initial_policy(solver, prob)
+
+    τ = 5.0 #solver.τ 
+    pomdp_solver = NativeSARSOP.SARSOPSolver(max_time=10.0)#PBVISolver(max_time=0.0325,max_iter=typemax(Int))#NativeSARSOP.SARSOPSolver(ρ=3.0) #PBVISolver(max_time=0.0325,max_iter=typemax(Int))#SARSOP.SARSOPSolver(precision=1.0,verbose=false,timeout=τ)
+    π0, v0, c0 = initial_policy(solver, prob, pomdp_solver)
+    # @show "initial_policy done"
     Π = [π0]
     V = [v0]
     C = reshape(c0, nc, 1)
@@ -95,31 +77,60 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     lp = master_lp(solver, prob, C,V)
     optimize!(lp)
     λ = dual(lp[:CONSTRAINT])::Vector{Float64}
-    # @show λ
     λ_hist = [λ]
+    # @show λ_hist
+    # @show "LP done"
 
-    iter = 0
+    πt = compute_policy(pomdp_solver,prob,λ)
+    # @show "Compute done"
+    # return πt
+    v_t, c_t = evaluate_policy(evaluator, prob, πt)
+    # @show "Evaluate done"
+    @show λ
+    iter = 1
     while time() - t0 < max_time && iter < max_iter
-        iter += 1
-        πt = compute_policy(solver,prob, λ)
-        v_t, c_t = evaluate_policy(evaluator, prob, πt)
+        # @show iter
         push!(Π, πt)
         push!(V, v_t)
         C = hcat(C, c_t)
+        iter += 1
 
         lp = master_lp(solver,prob,C,V)
         optimize!(lp)
         λ = dual(lp[:CONSTRAINT])::Vector{Float64}
         push!(λ_hist, λ)
+        # @show "LP done"
+        @show λ
+
+        ϕl = JuMP.objective_value(lp) 
+        ϕu = dot(λ,constraints(pomdp))
+
+        if λ == λ_hist[end-1]
+            τ += solver.τ_inc
+        end 
+
         δ = maximum(abs, λ .- λ_hist[end-1])
+        # δ < solver.ϵ && break
+        
+        pomdp_solver = NativeSARSOP.SARSOPSolver(max_time=10.0) #PBVISolver(max_time=0.0325,max_iter=typemax(Int))#NativeSARSOP.SARSOPSolver(ρ=3.0)#PBVISolver(max_time=0.0325,max_iter=typemax(Int))#SARSOP.SARSOPSolver(precision=1.0,verbose=false,timeout=τ)
+        πt = compute_policy(pomdp_solver,prob,λ)
+        # @show λ
+        # @show "Compute done"
+        # return πt
+        v_t, c_t = evaluate_policy(evaluator, prob, πt)
+        # @show "Evaluate done"
+        ϕu += POMDPs.value(πt,initialstate(pomdp))
+        ϕa = 10^(log10(max(abs(ϕl),abs(ϕu)))-solver.ρ)
         verbose && println("""
             c = $c_t
             v = $v_t
             λ = $λ
             δ = $δ
+            ϕa = $ϕa
+            Δϕ = $(ϕu-ϕl)
         ----------------------------------------------------
         """)
-        δ < solver.ϵ && break
+        (ϕu-ϕl<ϕa) && break
     end
     return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
 end

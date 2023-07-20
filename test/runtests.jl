@@ -40,9 +40,9 @@ end
 end
 
 @testset "minihall" begin
-    c_mh = MiniHallCPOMDP([1.0])
+    c_mh = MiniHallCPOMDP([4.0])
 
-    sol = CGCPSolver(;max_iter=15,max_time=1000.0,evaluator=PolicyGraphEvaluator())#PolicyGraphEvaluator()) #;method=POMDPPolicyGraphs.belief_value_recursive))
+    sol = CGCPSolver(;max_iter=15,max_time=1000.0,evaluator=PolicyGraphEvaluator(),verbose=true)#PolicyGraphEvaluator()) #;method=POMDPPolicyGraphs.belief_value_recursive))
     p = solve(sol, c_mh)
     @info "Policy value is: $(value(p,initialstate(c_mh)))"
     ĉ = c_mh.constraints
@@ -55,15 +55,30 @@ end
 end
 
 @testset "cheese" begin #This doesn't match the paper
-    c_mh = CheeseMazeCPOMDP([1.0])
+    c_mh = CheeseMazeCPOMDP([4.0])
     @show discount(c_mh)
-    sol = CGCPSolver(;max_iter=15,max_time=1000.0,verbose=true,evaluator=MCEvaluator()) #;method=POMDPPolicyGraphs.belief_value_recursive))
+    sol = CGCPSolver(;max_iter=15,max_time=1000.0,evaluator=PolicyGraphEvaluator()) #;method=POMDPPolicyGraphs.belief_value_recursive))
     p = solve(sol, c_mh)
     @info "Policy value is: $(value(p,initialstate(c_mh)))"
     ĉ = c_mh.constraints
     (;C,p_pi) = p
     @show C
     @show p_pi
+    @info C*p_pi
+    @info ĉ
+    @test C*p_pi ≈ ĉ
+end
+
+@testset "maze" begin #This doesn't match the paper
+    c_mz = Maze20CPOMDP([1.0])
+    @show discount(c_mz)
+    sol = CGCPSolver(;max_iter=15,max_time=1000.0,evaluator=PolicyGraphEvaluator(),verbose=true) #;method=POMDPPolicyGraphs.belief_value_recursive))
+    p = solve(sol, c_mz)
+    @info "Policy value is: $(value(p,initialstate(c_mz)))"
+    ĉ = c_mz.constraints
+    (;C,p_pi) = p
+    @show length(C)
+    @show length(p_pi)
     @info C*p_pi
     @info ĉ
     @test C*p_pi ≈ ĉ
