@@ -42,7 +42,7 @@ end
 @testset "minihall" begin
     c_mh = MiniHallCPOMDP([4.0])
 
-    sol = CGCPSolver(;max_iter=15,max_time=1000.0,evaluator=PolicyGraphEvaluator(),verbose=true)#PolicyGraphEvaluator()) #;method=POMDPPolicyGraphs.belief_value_recursive))
+    sol = CGCPSolver(;max_steps=100,verbose=true)
     p = solve(sol, c_mh)
     @info "Policy value is: $(value(p,initialstate(c_mh)))"
     ĉ = c_mh.constraints
