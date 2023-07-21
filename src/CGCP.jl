@@ -6,6 +6,7 @@ import GLPK
 using PBVI
 import NativeSARSOP
 import SARSOP
+import HSVI4CGCP
 using POMDPPolicyGraphs
 using POMDPTools
 using ConstrainedPOMDPs
