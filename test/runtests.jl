@@ -54,10 +54,10 @@ end
     @test C*p_pi ≈ ĉ
 end
 
-@testset "cheese" begin #This doesn't match the paper
+@testset "cheese" begin
     c_mh = CheeseMazeCPOMDP([4.0])
     @show discount(c_mh)
-    sol = CGCPSolver(;max_iter=15,max_time=1000.0,evaluator=PolicyGraphEvaluator()) #;method=POMDPPolicyGraphs.belief_value_recursive))
+    sol = CGCPSolver(;max_steps=10,verbose=true) #;method=POMDPPolicyGraphs.belief_value_recursive))
     p = solve(sol, c_mh)
     @info "Policy value is: $(value(p,initialstate(c_mh)))"
     ĉ = c_mh.constraints
