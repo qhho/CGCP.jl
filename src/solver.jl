@@ -61,7 +61,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     prob = CGCPProblem(pomdp, ones(nc), false)
 
     τ = solver.τ 
-    pomdp_solver = HSVI4CGCP.SARSOPSolver(max_time=τ,max_steps=solver.max_steps,ρ=3.0)
+    pomdp_solver = HSVI4CGCP.SARSOPSolver(max_time=τ,max_steps=solver.max_steps,delta=0.75)
     # pomdp_solver = PBVISolver(max_time=0.0325,max_iter=typemax(Int))
     π0, v0, c0 = initial_policy(solver, prob, pomdp_solver)
     Π = [π0]
@@ -72,10 +72,10 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     optimize!(lp)
     λ = dual(lp[:CONSTRAINT])::Vector{Float64}
     λ_hist = [λ]
-    @show λ_hist
+    # @show λ_hist
 
     πt = compute_policy(pomdp_solver,prob,λ)
-    @show POMDPs.value(πt,initialstate(pomdp))
+    # @show POMDPs.value(πt,initialstate(pomdp))
     v_t, c_t = evaluate_policy(evaluator, prob, πt)
 
     iter = 1
@@ -97,7 +97,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         optimize!(lp)
         λ = dual(lp[:CONSTRAINT])::Vector{Float64}
         push!(λ_hist, λ)
-        @show λ_hist
+        # @show λ_hist
 
         ϕl = JuMP.objective_value(lp) 
         ϕu = dot(λ,constraints(pomdp))
@@ -108,7 +108,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
 
         δ = maximum(abs, λ .- λ_hist[end-1])
         
-        pomdp_solver = HSVI4CGCP.SARSOPSolver(max_time=τ,max_steps=solver.max_steps,ρ=3.0)
+        pomdp_solver = HSVI4CGCP.SARSOPSolver(max_time=τ,max_steps=solver.max_steps,delta=0.75)
         # pomdp_solver = PBVISolver(max_time=0.0325,max_iter=typemax(Int))
         πt = compute_policy(pomdp_solver,prob,λ)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)

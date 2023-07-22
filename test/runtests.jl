@@ -42,7 +42,7 @@ end
 @testset "minihall" begin
     c_mh = MiniHallCPOMDP([4.0])
 
-    sol = CGCPSolver(;max_steps=100,verbose=true)
+    sol = CGCPSolver(;max_steps=10,verbose=true)
     p = solve(sol, c_mh)
     @info "Policy value is: $(value(p,initialstate(c_mh)))"
     ĉ = c_mh.constraints
