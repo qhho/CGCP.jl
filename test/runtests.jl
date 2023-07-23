@@ -72,7 +72,7 @@ end
 @testset "maze" begin #This doesn't match the paper
     c_mz = Maze20CPOMDP([1.0])
     @show discount(c_mz)
-    sol = CGCPSolver(;max_iter=15,max_time=1000.0,evaluator=PolicyGraphEvaluator(),verbose=true) #;method=POMDPPolicyGraphs.belief_value_recursive))
+    sol = CGCPSolver(;max_steps=10,verbose=true)
     p = solve(sol, c_mz)
     @info "Policy value is: $(value(p,initialstate(c_mz)))"
     ĉ = c_mz.constraints

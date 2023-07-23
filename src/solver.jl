@@ -126,7 +126,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         ----------------------------------------------------
         """)
         ((ϕu-ϕl)<ϕa) && break
-        δ < 0.0001 && break
+        # δ < 0.0001 && break
     end
     return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
 end
