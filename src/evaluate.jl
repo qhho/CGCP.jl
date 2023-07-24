@@ -1,5 +1,5 @@
 Base.@kwdef struct MCEvaluator
-    n::Int         = 10000 #100
+    n::Int         = 1000 #100
     parallel::Bool = false
     max_steps::Int = 1000 #100
 end

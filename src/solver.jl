@@ -6,7 +6,7 @@ Base.@kwdef struct CGCPSolver{LP, EVAL}
     τ_inc::Float64      = 100.0
     ρ::Float64          = 3.0
     lp_solver::LP       = GLPK.Optimizer
-    evaluator::EVAL     = PolicyGraphEvaluator(h=max_steps) #MCEvaluator()
+    evaluator::EVAL     = PolicyGraphEvaluator(max_steps) #MCEvaluator()
     verbose::Bool       = false
 end
 
@@ -126,7 +126,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         ----------------------------------------------------
         """)
         ((ϕu-ϕl)<ϕa) && break
-        # δ < 0.0001 && break
+        # δ == 0 && break
     end
     return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
 end

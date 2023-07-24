@@ -70,9 +70,9 @@ end
 end
 
 @testset "maze" begin #This doesn't match the paper
-    c_mz = Maze20CPOMDP([1.0])
+    c_mz = Maze20CPOMDP([3.0])
     @show discount(c_mz)
-    sol = CGCPSolver(;max_steps=10,verbose=true)
+    sol = CGCPSolver(verbose=true,evaluator=MCEvaluator())
     p = solve(sol, c_mz)
     @info "Policy value is: $(value(p,initialstate(c_mz)))"
     ĉ = c_mz.constraints
