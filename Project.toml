@@ -4,7 +4,6 @@ authors = ["qiheng <qi.ho@colorado.edu>"]
 version = "0.1.0"
 
 [deps]
-ConstrainedPOMDPModels = "b9836d1e-ed91-41e9-8327-a08d60bfad32"
 ConstrainedPOMDPs = "7a9489b1-4b84-4e64-8108-bdcab6d54d2c"
 GLPK = "60bf3e95-4087-53dc-ae20-288a0d20c6a6"
 HSVI4CGCP = "02621bba-30a9-4924-a966-01cf56c77902"
