@@ -1,5 +1,5 @@
-# include("restore_unregistered.jl")
-# using CGCP
+include("restore_unregistered.jl")
+using CGCP
 using POMDPs
 using POMDPModels
 using ConstrainedPOMDPs

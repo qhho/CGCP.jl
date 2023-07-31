@@ -1,9 +1,7 @@
 @testset "trivial" begin
     ĉ = [0.5]
     pomdp = TrivialCPOMDP(ĉ)
-    sol = CGCPSolver(
-        pomdp_solver = SARSOPSolver(verbose=false, precision=1e-2)
-    )
+    sol = CGCPSolver()
     p = solve(sol, pomdp)
     
     @test sum(p.p_pi) ≈ 1.0
