@@ -1,4 +1,4 @@
-Base.@kwdef struct CGCPSolver{LP, EVAL}
+Base.@kwdef struct CGCPSolver{LP, EVAL, O<:NamedTuple}
     max_time::Float64   = 1e5
     max_iter::Int       = 100
     max_steps::Int      = typemax(Int)
@@ -8,6 +8,7 @@ Base.@kwdef struct CGCPSolver{LP, EVAL}
     lp_solver::LP       = GLPK.Optimizer
     evaluator::EVAL     = PolicyGraphEvaluator(max_steps) #MCEvaluator()
     verbose::Bool       = false
+    pomdp_sol_options::O= (;delta=0.75)
 end
 
 mutable struct CGCPSolution <: Policy
@@ -56,13 +57,11 @@ end
 
 function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     t0 = time()
-    (;max_time, max_iter, evaluator, verbose) = solver
+    (;max_time, max_iter, evaluator, verbose, τ, pomdp_sol_options) = solver
     nc = constraint_size(pomdp)
     prob = CGCPProblem(pomdp, ones(nc), false)
 
-    τ = solver.τ 
-    pomdp_solver = HSVI4CGCP.SARSOPSolver(max_time=τ,max_steps=solver.max_steps,delta=0.75)
-    # pomdp_solver = PBVISolver(max_time=0.0325,max_iter=typemax(Int))
+    pomdp_solver = HSVI4CGCP.SARSOPSolver(;max_time=τ, max_steps=solver.max_steps, pomdp_sol_options...)
     π0, v0, c0 = initial_policy(solver, prob, pomdp_solver)
     Π = [π0]
     V = [v0]
@@ -72,10 +71,8 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     optimize!(lp)
     λ = dual(lp[:CONSTRAINT])::Vector{Float64}
     λ_hist = [λ]
-    # @show λ_hist
 
     πt = compute_policy(pomdp_solver,prob,λ)
-    # @show POMDPs.value(πt,initialstate(pomdp))
     v_t, c_t = evaluate_policy(evaluator, prob, πt)
 
     iter = 1
@@ -97,7 +94,6 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         optimize!(lp)
         λ = dual(lp[:CONSTRAINT])::Vector{Float64}
         push!(λ_hist, λ)
-        # @show λ_hist
 
         ϕl = JuMP.objective_value(lp) 
         ϕu = dot(λ,constraints(pomdp))
@@ -109,7 +105,6 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         δ = maximum(abs, λ .- λ_hist[end-1])
         
         pomdp_solver = HSVI4CGCP.SARSOPSolver(max_time=τ,max_steps=solver.max_steps,delta=0.75)
-        # pomdp_solver = PBVISolver(max_time=0.0325,max_iter=typemax(Int))
         πt = compute_policy(pomdp_solver,prob,λ)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)
         ϕu += POMDPs.value(πt,initialstate(pomdp))
@@ -126,7 +121,6 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         ----------------------------------------------------
         """)
         ((ϕu-ϕl)<ϕa) && break
-        # δ == 0 && break
     end
     return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
 end
