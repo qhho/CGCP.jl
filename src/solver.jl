@@ -66,8 +66,15 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     Π = [π0]
     V = [v0]
     C = reshape(c0, nc, 1)
-
+    
     lp = master_lp(solver, prob, C,V)
+    
+    # if cost minimizing policy inadmissible, no point in solving LP or finding other solutions
+    # Just return min cost solution
+    if !(c0 ⪯ constraints(pomdp))
+        return CGCPSolution(Π, [1.0], lp, C, V, ones(nc), 0, prob, evaluator)
+    end
+
     optimize!(lp)
     λ = dual(lp[:CONSTRAINT])::Vector{Float64}
     λ_hist = [λ]
