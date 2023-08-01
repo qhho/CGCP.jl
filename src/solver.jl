@@ -111,11 +111,11 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
 
         δ = maximum(abs, λ .- λ_hist[end-1])
         
-        pomdp_solver = HSVI4CGCP.SARSOPSolver(max_time=τ,max_steps=solver.max_steps,delta=0.75)
+        pomdp_solver = HSVI4CGCP.SARSOPSolver(;max_time=τ,max_steps=solver.max_steps, pomdp_sol_options...)
         πt = compute_policy(pomdp_solver,prob,λ)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)
         ϕu += POMDPs.value(πt,initialstate(pomdp))
-        ϕa = 10^(log10(max(abs(ϕl),abs(ϕu)))-solver.ρ)
+        ϕa = exp10(log10(max(abs(ϕl),abs(ϕu)))-solver.ρ)
 
         verbose && println("""
             iteration $iter
