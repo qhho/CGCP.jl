@@ -37,7 +37,12 @@ end
 
 function compute_policy(sol, m::CGCPProblem, λ::Vector{Float64})
     m.λ = λ
-    s_pol = solve(sol,m) 
+    s_pol = solve(sol,m)  #Compare to RS soln
+    # @show length(s_pol.alphas)
+    # @show sol.max_steps
+    # n_sol = HSVI4CGCP.SARSOPSolver(max_time=60.0,max_steps=typemax(Int),delta=0.75)
+    # n_pol = solve(n_sol,m.m.m)
+    # @show length(n_pol.alphas)
     return  s_pol
 end
 
@@ -60,7 +65,6 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     (;max_time, max_iter, evaluator, verbose, τ, pomdp_sol_options) = solver
     nc = constraint_size(pomdp)
     prob = CGCPProblem(pomdp, ones(nc), false)
-
     pomdp_solver = HSVI4CGCP.SARSOPSolver(;max_time=τ, max_steps=solver.max_steps, pomdp_sol_options...)
     π0, v0, c0 = initial_policy(solver, prob, pomdp_solver)
     Π = [π0]
@@ -110,7 +114,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         end 
 
         δ = maximum(abs, λ .- λ_hist[end-1])
-        
+
         pomdp_solver = HSVI4CGCP.SARSOPSolver(;max_time=τ,max_steps=solver.max_steps, pomdp_sol_options...)
         πt = compute_policy(pomdp_solver,prob,λ)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)
@@ -127,8 +131,12 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
             Δϕ = $(ϕu-ϕl)
         ----------------------------------------------------
         """)
+        if (ϕu-ϕl) < 0.0
+            @warn "Δϕ=$(ϕu-ϕl) is less than 0.0."
+        end
         ((ϕu-ϕl)<ϕa) && break
     end
+    @show time() - t0
     return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
 end
 

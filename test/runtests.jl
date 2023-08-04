@@ -6,12 +6,15 @@ using ConstrainedPOMDPs
 using ConstrainedPOMDPModels
 using Test
 using LinearAlgebra
+using RockSample
 
 @testset "rock" begin
-    c_rs = RockSampleCPOMDP()
+    # c_rs = RockSampleCPOMDP()
+    c_rs = RockSampleCPOMDP(RockSamplePOMDP(4,4), [1.0])
 
-    sol = CGCPSolver(;max_time=60.0,verbose=true,evaluator=PolicyGraphEvaluator())
+    sol = CGCPSolver(;max_time=180.0,verbose=true,evaluator=PolicyGraphEvaluator())
     p = solve(sol, c_rs)
+    @info "Policy value is: $(value(p,initialstate(c_rs)))"
     ĉ = c_rs.constraints
     (;C,p_pi) = p
     @show C
