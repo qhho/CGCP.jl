@@ -37,12 +37,7 @@ end
 
 function compute_policy(sol, m::CGCPProblem, λ::Vector{Float64})
     m.λ = λ
-    s_pol = solve(sol,m)  #Compare to RS soln
-    # @show length(s_pol.alphas)
-    # @show sol.max_steps
-    # n_sol = HSVI4CGCP.SARSOPSolver(max_time=60.0,max_steps=typemax(Int),delta=0.75)
-    # n_pol = solve(n_sol,m.m.m)
-    # @show length(n_pol.alphas)
+    s_pol = solve(sol,m)
     return  s_pol
 end
 
