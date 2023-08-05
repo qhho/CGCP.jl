@@ -127,7 +127,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
             Δϕ = $(ϕu-ϕl)
         ----------------------------------------------------
         """)
-        if Δϕwarn && (ϕu-ϕl) < 0.0
+        if solver.Δϕwarn && (ϕu-ϕl) < 0.0
             @warn "Δϕ=$(ϕu-ϕl) is less than 0.0."
         end
         ((ϕu-ϕl)<ϕa) && break
