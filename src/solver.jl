@@ -9,6 +9,7 @@ Base.@kwdef struct CGCPSolver{LP, EVAL, O<:NamedTuple}
     evaluator::EVAL     = PolicyGraphEvaluator(max_steps) #MCEvaluator()
     verbose::Bool       = false
     pomdp_sol_options::O= (;delta=0.75)
+    Δϕwarn              = false
 end
 
 mutable struct CGCPSolution <: Policy
@@ -126,7 +127,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
             Δϕ = $(ϕu-ϕl)
         ----------------------------------------------------
         """)
-        if (ϕu-ϕl) < 0.0
+        if Δϕwarn && (ϕu-ϕl) < 0.0
             @warn "Δϕ=$(ϕu-ϕl) is less than 0.0."
         end
         ((ϕu-ϕl)<ϕa) && break
