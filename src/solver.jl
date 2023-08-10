@@ -132,7 +132,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         ((ϕu-ϕl)<ϕa) && break
     end
     # @show time() - t0
-    return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
+    return CGCPSolution(Π, JuMP.value.(lp[:x]), C, V, λ_hist, 0, prob, evaluator)
 end
 
 reset!(p::CGCPSolution) = p.policy_idx = 0
