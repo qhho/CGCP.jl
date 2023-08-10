@@ -15,7 +15,6 @@ end
 mutable struct CGCPSolution <: Policy
     const policy_vector::Vector{AlphaVectorPolicy}
     const p_pi::Vector{Float64}
-    const mlp::JuMP.Model
     const C::Matrix{Float64}
     const V::Vector{Float64}
     const dual_vectors::Vector{Vector{Float64}}
@@ -72,7 +71,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     # if cost minimizing policy inadmissible, no point in solving LP or finding other solutions
     # Just return min cost solution
     if !(c0 ⪯ constraints(pomdp))
-        return CGCPSolution(Π, [1.0], lp, C, V, [ones(nc)], 0, prob, evaluator)
+        return CGCPSolution(Π, [1.0], C, V, [ones(nc)], 0, prob, evaluator)
     end
 
     optimize!(lp)
