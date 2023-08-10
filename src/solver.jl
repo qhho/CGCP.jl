@@ -1,4 +1,4 @@
-Base.@kwdef struct CGCPSolver{LP, EVAL, O<:NamedTuple}
+Base.@kwdef struct CGCPSolver{LP, EVAL, O<:NamedTuple} <: Solver
     max_time::Float64   = 1e5
     max_iter::Int       = 100
     max_steps::Int      = typemax(Int)
