@@ -15,7 +15,6 @@ end
 mutable struct CGCPSolution <: Policy
     const policy_vector::Vector{AlphaVectorPolicy}
     const p_pi::Vector{Float64}
-    const mlp::JuMP.Model
     const C::Matrix{Float64}
     const V::Vector{Float64}
     const dual_vectors::Vector{Vector{Float64}}
@@ -29,7 +28,7 @@ function initial_policy(sol::CGCPSolver, m::CGCPProblem, pomdp_solver)
     m.initialized = false
 
     λ = ones(length(m.m.constraints))
-    policy = compute_policy(pomdp_solver, m, λ)
+    policy,_ = compute_policy(pomdp_solver, m, λ)
     v, c = evaluate_policy(sol.evaluator, m, policy)
 
     m.initialized = true
@@ -40,6 +39,13 @@ function compute_policy(sol, m::CGCPProblem, λ::Vector{Float64})
     m.λ = λ
     s_pol = solve(sol,m)
     return  s_pol
+end
+
+function compute_policy(sol::HSVI4CGCP.SARSOPSolver, m::CGCPProblem, λ::Vector{Float64})
+    m.λ = λ
+    soln = solve_info(sol,m)
+    s_pol = soln[1]
+    return  s_pol, ub
 end
 
 function master_lp(solver::CGCPSolver, m::CGCPProblem, C, V)
@@ -72,14 +78,14 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
     # if cost minimizing policy inadmissible, no point in solving LP or finding other solutions
     # Just return min cost solution
     if !(c0 ⪯ constraints(pomdp))
-        return CGCPSolution(Π, [1.0], lp, C, V, [ones(nc)], 0, prob, evaluator)
+        return CGCPSolution(Π, [1.0], C, V, [ones(nc)], 0, prob, evaluator)
     end
 
     optimize!(lp)
     λ = dual(lp[:CONSTRAINT])::Vector{Float64}
     λ_hist = [λ]
 
-    πt = compute_policy(pomdp_solver,prob,λ)
+    πt,v_ub = compute_policy(pomdp_solver,prob,λ)
     v_t, c_t = evaluate_policy(evaluator, prob, πt)
 
     iter = 1
@@ -88,6 +94,7 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         c = $c_t
         v = $v_t
         λ = $λ
+        τ = $τ
     ----------------------------------------------------
     """)
     
@@ -112,28 +119,29 @@ function POMDPs.solve(solver::CGCPSolver, pomdp::CPOMDP)
         δ = maximum(abs, λ .- λ_hist[end-1])
 
         pomdp_solver = HSVI4CGCP.SARSOPSolver(;max_time=τ,max_steps=solver.max_steps, pomdp_sol_options...)
-        πt = compute_policy(pomdp_solver,prob,λ)
+        πt,v_ub = compute_policy(pomdp_solver,prob,λ)
         v_t, c_t = evaluate_policy(evaluator, prob, πt)
-        ϕu += POMDPs.value(πt,initialstate(pomdp))
-        ϕa = exp10(log10(max(abs(ϕl),abs(ϕu)))-solver.ρ)
+        ϕu += v_ub
+        ϕa = exp10(ceil(log10(max(abs(ϕl),abs(ϕu))))-solver.ρ)
 
         verbose && println("""
             iteration $iter
             c = $c_t
             v = $v_t
             λ = $λ
+            τ = $τ
             δ = $δ
             ϕa = $ϕa
             Δϕ = $(ϕu-ϕl)
         ----------------------------------------------------
         """)
-        if solver.Δϕwarn && (ϕu-ϕl) < -1e5
+        if solver.Δϕwarn && (ϕu-ϕl) < -1e-5
             @warn "Δϕ=$(ϕu-ϕl) is less than 0.0."
         end
         ((ϕu-ϕl)<ϕa) && break
     end
     # @show time() - t0
-    return CGCPSolution(Π, JuMP.value.(lp[:x]), lp, C, V, λ_hist, 0, prob, evaluator)
+    return CGCPSolution(Π, JuMP.value.(lp[:x]), C, V, λ_hist, 0, prob, evaluator)
 end
 
 reset!(p::CGCPSolution) = p.policy_idx = 0
