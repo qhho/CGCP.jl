@@ -45,6 +45,7 @@ function compute_policy(sol::HSVI4CGCP.SARSOPSolver, m::CGCPProblem, λ::Vector{
     m.λ = λ
     soln = solve_info(sol,m)
     s_pol = soln[1]
+    ub = soln[2][:tree].V_upper[1]
     return  s_pol, ub
 end
 
